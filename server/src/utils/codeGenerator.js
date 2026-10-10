@@ -13,7 +13,9 @@ async function initializeCounterIfNeeded(
   });
 
   if (!settings) {
-    settings = await tx.setting.create({ data: { shopId } });
+    settings = await tx.setting.create({
+      data: { shopId },
+    });
   }
 
   // Already initialized
@@ -35,15 +37,14 @@ async function initializeCounterIfNeeded(
   }
 
   const prefix = settings[prefixField];
-
   const code = latest[codeField];
 
-  if (!code.startsWith(prefix)) {
+  if (!code || !prefix || !code.startsWith(prefix)) {
     return settings;
   }
 
   const number = parseInt(
-    code.replace(prefix, ""),
+    code.slice(prefix.length),
     10
   );
 
@@ -69,28 +70,25 @@ async function generateCode(
     codeField,
     prefixField,
     counterField,
+    digits = 4,
   }
 ) {
-  const settings =
-    await initializeCounterIfNeeded(
-      tx,
-      shopId,
-      {
-        model,
-        codeField,
-        prefixField,
-        counterField,
-      }
-    );
+  const settings = await initializeCounterIfNeeded(
+    tx,
+    shopId,
+    {
+      model,
+      codeField,
+      prefixField,
+      counterField,
+    }
+  );
 
-  const prefix =
-    settings[prefixField];
+  const prefix = settings[prefixField];
+  const number = settings[counterField];
 
-  const number =
-    settings[counterField];
-
- const code =
-  `${prefix}${String(number).padStart(4, "0")}`;
+  const code =
+    `${prefix}${String(number).padStart(digits, "0")}`;
 
   await tx.setting.update({
     where: {
@@ -112,6 +110,7 @@ export async function generateInvoiceCode(tx, shopId) {
     codeField: "invoiceCode",
     prefixField: "invoicePrefix",
     counterField: "nextInvoiceNumber",
+    digits: 2,
   });
 }
 
