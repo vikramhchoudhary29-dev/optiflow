@@ -1,0 +1,9 @@
+import*as repo from"../../repositories/reports/reports.repository.js";
+export const getSalesSummaryService=(shopId,query)=>repo.getSalesSummary(shopId,query);
+export const getPurchaseReportService=(shopId,query)=>repo.getPurchaseReport(shopId,query);
+export const getExpenseReportService=(shopId,query)=>repo.getExpenseReport(shopId,query);
+export const getStockReportService=(shopId)=>repo.getStockReport(shopId);
+export const getLowStockReportService=(shopId)=>repo.getLowStockReport(shopId);
+export const getCustomerReportService=(shopId)=>repo.getCustomerReport(shopId);
+export const getProfitReportService=(shopId,query)=>repo.getProfitReport(shopId,query);
+export const getDayBookService=(shopId,query)=>repo.getDayBook(shopId,query.date);

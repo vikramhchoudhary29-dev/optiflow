@@ -1,0 +1,14 @@
+import { Router } from "express";
+import * as controller from "../controllers/product.controller.js";
+import { requireShopUser, requirePermission } from "../middlewares/auth.middleware.js";
+import { validate } from "../middlewares/validate.middleware.js";
+import { createProductSchema, updateProductSchema, adjustStockSchema } from "../validations/product.validation.js";
+const router = Router();
+router.use(requireShopUser);
+router.get("/", requirePermission("products", "view"), controller.list);
+router.get("/:id", requirePermission("products", "view"), controller.get);
+router.post("/", requirePermission("products", "create"), validate(createProductSchema), controller.create);
+router.put("/:id", requirePermission("products", "edit"), validate(updateProductSchema), controller.update);
+router.patch("/:id/status", requirePermission("products", "edit"), controller.toggle);
+router.post("/:id/stock-adjustment", requirePermission("products", "edit"), validate(adjustStockSchema), controller.adjustStock);
+export default router;

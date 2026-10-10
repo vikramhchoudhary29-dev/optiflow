@@ -1,0 +1,796 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+}
+
+model admin {
+  id              Int              @id @default(autoincrement())
+  name            String
+  email           String           @unique(map: "Admin_email_key")
+  password        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  supportSessions SupportSession[]
+}
+
+model customer {
+  id                  Int                  @id @default(autoincrement())
+  shopId              Int
+  customerCode        String
+  name                String
+  mobile              String
+  email               String?
+  gender              customer_gender?
+  dob                 DateTime?
+  address             String?
+  city                String?
+  state               String?
+  pincode             String?
+  remarks             String?
+  active              Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  shop                shop                 @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  invoice             invoice[]
+  prescription        prescription[]
+  loyaltyTransactions LoyaltyTransaction[]
+  activities          CustomerActivity[]
+
+  @@unique([shopId, customerCode])
+  @@index([shopId])
+}
+
+model CustomerActivity {
+  id          Int                     @id @default(autoincrement())
+  shopId      Int
+  customerId  Int
+  createdById Int?
+  type        customer_activity_type   @default(NOTE)
+  status      customer_activity_status @default(OPEN)
+  title       String
+  note        String?
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  shop       shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customer   customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdBy  user?    @relation("CustomerActivityCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([shopId, dueDate])
+  @@index([shopId, customerId, createdAt])
+  @@index([shopId, status])
+}
+
+model frame {
+  id            Int            @id @default(autoincrement())
+  shopId        Int
+  frameCode     String
+  brand         String
+  model         String
+  color         String?
+  size          String?
+  shape         String?
+  material      String?
+  barcode       String?
+  purchasePrice Decimal        @db.Decimal(10, 2)
+  sellingPrice  Decimal        @db.Decimal(10, 2)
+  stock         Int            @default(0)
+  minimumStock  Int            @default(0)
+  active        Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  shop          shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  invoiceitem   invoiceitem[]
+  purchaseitem  purchaseitem[]
+
+  @@unique([shopId, frameCode])
+  @@index([shopId])
+}
+
+model invoice {
+  id             Int  @id @default(autoincrement())
+  shopId         Int
+  customerId     Int
+  prescriptionId Int?
+  createdById    Int?
+
+  invoiceCode String
+  invoiceDate DateTime @default(now())
+
+  // NEW
+  deliveryDate   DateTime?
+  deliveryStatus delivery_status @default(PENDING)
+
+  subTotal   Decimal @db.Decimal(10, 2)
+  discount   Decimal @default(0.00) @db.Decimal(10, 2)
+  gst        Decimal @default(0.00) @db.Decimal(10, 2)
+  grandTotal Decimal @db.Decimal(10, 2)
+
+  // NEW
+  advance  Decimal @default(0.00) @db.Decimal(10, 2)
+  received Decimal @default(0.00) @db.Decimal(10, 2)
+  balance  Decimal @default(0.00) @db.Decimal(10, 2)
+
+  paymentStatus invoice_paymentStatus  @default(PENDING)
+  paymentMethod invoice_paymentMethod?
+
+  remarks String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer     customer      @relation(fields: [customerId], references: [id])
+  prescription prescription? @relation(fields: [prescriptionId], references: [id])
+  shop         shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  createdBy    user?         @relation("InvoiceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  invoiceitem         invoiceitem[]
+  payments            Payment[]
+  loyaltyTransactions LoyaltyTransaction[]
+
+  loyaltyPointsEarned   Int     @default(0)
+  loyaltyPointsRedeemed Int     @default(0)
+  loyaltyDiscount       Decimal @default(0.00) @db.Decimal(10, 2)
+
+  @@unique([shopId, invoiceCode])
+  @@index([customerId])
+  @@index([prescriptionId])
+  @@index([shopId])
+  @@index([createdById])
+}
+
+model invoiceitem {
+  id Int @id @default(autoincrement())
+
+  invoiceId Int
+
+  frameId   Int?
+  lensId    Int?
+  productId Int?
+
+  itemType invoiceitem_itemType
+
+  // NEW
+  itemCode String?
+
+  itemName String
+
+  // NEW
+  hsnSac String?
+
+  quantity Int
+
+  // NEW
+  unit String? @default("Nos")
+
+  price Decimal @db.Decimal(10, 2)
+
+  // NEW
+  discount Decimal @default(0.00) @db.Decimal(10, 2)
+
+  total Decimal @db.Decimal(10, 2)
+
+  frame   frame?   @relation(fields: [frameId], references: [id])
+  lens    Lens?    @relation(fields: [lensId], references: [id])
+  product Product? @relation(fields: [productId], references: [id])
+
+  invoice invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([frameId])
+  @@index([productId])
+}
+
+model prescription {
+  id               Int                 @id @default(autoincrement())
+  shopId           Int
+  customerId       Int
+  rightSph         Decimal?            @db.Decimal(4, 2)
+  rightCyl         Decimal?            @db.Decimal(4, 2)
+  rightAxis        Int?
+  rightAdd         Decimal?            @db.Decimal(4, 2)
+  leftSph          Decimal?            @db.Decimal(4, 2)
+  leftCyl          Decimal?            @db.Decimal(4, 2)
+  leftAxis         Int?
+  leftAdd          Decimal?            @db.Decimal(4, 2)
+  pdDistance       Decimal?            @db.Decimal(4, 2)
+  pdNear           Decimal?            @db.Decimal(4, 2)
+  doctorName       String?
+  doctorNotes      String?
+  prescriptionDate DateTime            @default(now())
+  status           prescription_status @default(ACTIVE)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  prescriptionCode String
+  contactLensBrand String?
+  contactLensType  String?
+  expiryDate       DateTime?
+  frame            String?
+  leftBc           Decimal?            @db.Decimal(3, 1)
+  leftDia          Decimal?            @db.Decimal(3, 1)
+  leftPower        Decimal?            @db.Decimal(4, 2)
+  lens             String?
+  lensType         String?
+  rightBc          Decimal?            @db.Decimal(3, 1)
+  rightDia         Decimal?            @db.Decimal(3, 1)
+  rightPower       Decimal?            @db.Decimal(4, 2)
+  invoice          invoice[]
+  customer         customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  shop             shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, prescriptionCode])
+  @@index([customerId])
+  @@index([shopId])
+}
+
+model purchase {
+  id            Int            @id @default(autoincrement())
+  shopId        Int
+  purchaseCode  String
+  invoiceNumber String?
+  supplierName  String
+  supplierId    Int?
+  purchaseDate  DateTime       @default(now())
+  totalAmount   Decimal        @db.Decimal(10, 2)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  shop          shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  purchaseitem  purchaseitem[]
+  supplier      Supplier?      @relation(fields: [supplierId], references: [id])
+
+  @@unique([shopId, purchaseCode])
+  @@index([shopId])
+  @@index([supplierId])
+}
+
+model purchaseitem {
+  id            Int      @id @default(autoincrement())
+  purchaseId    Int
+  frameId       Int?
+  productId     Int?
+  quantity      Int
+  purchasePrice Decimal  @db.Decimal(10, 2)
+  total         Decimal  @db.Decimal(10, 2)
+  frame         frame?   @relation(fields: [frameId], references: [id])
+  product       Product? @relation(fields: [productId], references: [id])
+  purchase      purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  @@index([frameId])
+  @@index([purchaseId])
+  @@index([productId])
+}
+
+model shop {
+  id                   Int                   @id @default(autoincrement())
+  shopName             String
+  ownerName            String
+  mobile               String                @unique(map: "Shop_mobile_key")
+  email                String?               @unique(map: "Shop_email_key")
+  address              String?
+  gstNumber            String?
+  status               Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  customer             customer[]
+  frame                frame[]
+  invoice              invoice[]
+  prescription         prescription[]
+  purchase             purchase[]
+  subscriptions        subscription[]
+  users                user[]
+  customerActivities   CustomerActivity[]
+  lenses               Lens[]
+  setting              Setting?
+  categories           Category[]
+  products             Product[]
+  suppliers            Supplier[]
+  payments             Payment[]
+  expenses             Expense[]
+  supplierPayments     SupplierPayment[]
+  stockMovements       StockMovement[]
+  notificationTemplate NotificationTemplate?
+  marketingTemplates   MarketingTemplate[]
+  loyaltySetting       LoyaltySetting?
+  loyaltyTransactions  LoyaltyTransaction[]
+  userPermissions      UserPermission[]
+  subscriptionPayments SubscriptionPayment[]
+  announcementTargets  AnnouncementShop[]
+  supportSessions      SupportSession[]
+}
+
+model subscription {
+  id          Int                   @id @default(autoincrement())
+  shopId      Int
+  plan        subscription_plan
+  amount      Decimal               @db.Decimal(10, 2)
+  startDate   DateTime
+  expiryDate  DateTime
+  active      Boolean               @default(true)
+  status      subscription_status   @default(ACTIVE)
+  trialEndsAt DateTime?
+  createdAt   DateTime              @default(now())
+  shop        shop                  @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  payments    SubscriptionPayment[]
+
+  @@index([shopId])
+}
+
+model PlatformSetting {
+  id              Int      @id @default(1)
+  planName        String   @default("OptiFlow Plan")
+  monthlyPrice    Decimal  @default(0.00) @db.Decimal(10, 2)
+  yearlyPrice     Decimal  @default(0.00) @db.Decimal(10, 2)
+  trialDays       Int      @default(14)
+  gracePeriodDays Int      @default(0)
+  autoExpire      Boolean  @default(true)
+  reminderDays    String   @default("30,15,7,1")
+  updatedAt       DateTime @updatedAt
+}
+
+model SubscriptionPayment {
+  id             Int                     @id @default(autoincrement())
+  shopId         Int
+  subscriptionId Int?
+  amount         Decimal                 @db.Decimal(10, 2)
+  status         platform_payment_status @default(PAID)
+  reference      String?
+  notes          String?
+  dueDate        DateTime?
+  paidAt         DateTime?
+  createdAt      DateTime                @default(now())
+  shop           shop                    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  subscription   subscription?           @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([shopId])
+  @@index([subscriptionId])
+  @@index([status])
+}
+
+model SupportSession {
+  id        Int       @id @default(autoincrement())
+  adminId   Int
+  shopId    Int
+  ownerId   Int
+  ipAddress String?
+  expiresAt DateTime
+  endedAt   DateTime?
+  createdAt DateTime  @default(now())
+  admin     admin     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  shop      shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([shopId])
+}
+
+model user {
+  id                      Int               @id @default(autoincrement())
+  shopId                  Int
+  name                    String
+  mobile                  String            @unique(map: "User_mobile_key")
+  email                   String?           @unique(map: "User_email_key")
+  loginId                 String?           @unique
+  password                String
+  role                    user_role         @default(OWNER)
+  status                  Boolean           @default(true)
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  shop                    shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  permissions             UserPermission[]
+  createdPayments         Payment[]         @relation("PaymentCreatedBy")
+  createdExpenses         Expense[]         @relation("ExpenseCreatedBy")
+  createdSupplierPayments SupplierPayment[] @relation("SupplierPaymentCreatedBy")
+  stockMovements          StockMovement[]   @relation("StockMovementCreatedBy")
+  createdInvoices         invoice[]         @relation("InvoiceCreatedBy")
+  customerActivities      CustomerActivity[] @relation("CustomerActivityCreatedBy")
+
+  @@index([shopId])
+}
+
+enum subscription_plan {
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum subscription_status {
+  TRIAL
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum platform_payment_status {
+  PAID
+  UNPAID
+  OVERDUE
+}
+
+enum invoiceitem_itemType {
+  FRAME
+  LENS
+  ACCESSORY
+}
+
+enum customer_activity_type {
+  NOTE
+  FOLLOW_UP
+  CALL
+  WHATSAPP
+  VISIT
+  REMINDER
+}
+
+enum customer_activity_status {
+  OPEN
+  DONE
+  CANCELLED
+}
+
+enum customer_gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum user_role {
+  OWNER
+  STAFF
+}
+
+enum invoice_paymentStatus {
+  PENDING
+  PAID
+  PARTIAL
+}
+
+enum invoice_paymentMethod {
+  CASH
+  CARD
+  UPI
+  BANK
+}
+
+enum delivery_status {
+  PENDING
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+enum prescription_status {
+  ACTIVE
+  ARCHIVED
+}
+
+model Lens {
+  id Int @id @default(autoincrement())
+
+  shopId Int
+  shop   shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  lensCode String
+  lensName String
+
+  purchasePrice Decimal @db.Decimal(10, 2)
+  sellingPrice  Decimal @db.Decimal(10, 2)
+
+  active Boolean @default(true)
+
+  invoiceItems invoiceitem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([shopId, lensCode])
+}
+
+model Setting {
+  id Int @id @default(autoincrement())
+
+  shopId Int @unique
+
+  shop shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  // Prefixes
+  invoicePrefix      String @default("INV")
+  customerPrefix     String @default("CUS")
+  prescriptionPrefix String @default("PRE")
+  purchasePrefix     String @default("PUR")
+  productPrefix      String @default("PRD")
+
+  // Next Numbers
+  nextInvoiceNumber      Int @default(1)
+  nextCustomerNumber     Int @default(1)
+  nextPrescriptionNumber Int @default(1)
+  nextPurchaseNumber     Int @default(1)
+  nextProductNumber      Int @default(1)
+
+  currency String @default("INR")
+
+  gstNumber String?
+
+  reviewLink String?
+
+  logoUrl String?
+
+  footerNote String?
+
+  terms String?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id          Int       @id @default(autoincrement())
+  shopId      Int
+  name        String
+  description String?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  shop        shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  products    Product[]
+
+  @@unique([shopId, name])
+  @@index([shopId])
+}
+
+model Product {
+  id             Int             @id @default(autoincrement())
+  shopId         Int
+  categoryId     Int
+  name           String
+  brand          String?
+  sku            String
+  barcode        String?
+  purchasePrice  Decimal         @default(0) @db.Decimal(10, 2)
+  sellingPrice   Decimal         @default(0) @db.Decimal(10, 2)
+  stock          Int             @default(0)
+  minimumStock   Int             @default(0)
+  active         Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  shop           shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  category       Category        @relation(fields: [categoryId], references: [id])
+  purchaseItems  purchaseitem[]
+  invoiceItems   invoiceitem[]
+  stockMovements StockMovement[]
+
+  @@unique([shopId, sku])
+  @@unique([shopId, barcode])
+  @@index([shopId, categoryId])
+}
+
+model Supplier {
+  id        Int               @id @default(autoincrement())
+  shopId    Int
+  name      String
+  mobile    String?
+  email     String?
+  address   String?
+  notes     String?
+  active    Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  shop      shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  purchases purchase[]
+  payments  SupplierPayment[]
+
+  @@unique([shopId, name])
+  @@index([shopId])
+}
+
+model Payment {
+  id          Int                   @id @default(autoincrement())
+  shopId      Int
+  invoiceId   Int
+  amount      Decimal               @db.Decimal(10, 2)
+  method      invoice_paymentMethod
+  reference   String?
+  notes       String?
+  paidAt      DateTime              @default(now())
+  createdById Int?
+  createdAt   DateTime              @default(now())
+  shop        shop                  @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  invoice     invoice               @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  createdBy   user?                 @relation("PaymentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([shopId, paidAt])
+  @@index([invoiceId])
+}
+
+model Expense {
+  id            Int                    @id @default(autoincrement())
+  shopId        Int
+  category      String
+  description   String
+  amount        Decimal                @db.Decimal(10, 2)
+  expenseDate   DateTime               @default(now())
+  paymentMethod invoice_paymentMethod?
+  notes         String?
+  createdById   Int?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  shop          shop                   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  createdBy     user?                  @relation("ExpenseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([shopId, expenseDate])
+}
+
+model SupplierPayment {
+  id            Int                   @id @default(autoincrement())
+  shopId        Int
+  supplierId    Int
+  amount        Decimal               @db.Decimal(10, 2)
+  paymentDate   DateTime              @default(now())
+  paymentMethod invoice_paymentMethod
+  reference     String?
+  notes         String?
+  createdById   Int?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  shop          shop                  @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  supplier      Supplier              @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  createdBy     user?                 @relation("SupplierPaymentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([shopId, paymentDate])
+  @@index([supplierId])
+}
+
+model StockMovement {
+  id            Int                 @id @default(autoincrement())
+  shopId        Int
+  productId     Int
+  type          stock_movement_type
+  quantity      Int
+  referenceType String?
+  referenceId   Int?
+  notes         String?
+  createdById   Int?
+  createdAt     DateTime            @default(now())
+  shop          shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  product       Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdBy     user?               @relation("StockMovementCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([shopId, productId, createdAt])
+}
+
+enum stock_movement_type {
+  PURCHASE
+  SALE
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+}
+
+model UserPermission {
+  id        Int      @id @default(autoincrement())
+  shopId    Int
+  userId    Int
+  module    String
+  canView   Boolean  @default(false)
+  canCreate Boolean  @default(false)
+  canEdit   Boolean  @default(false)
+  canDelete Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  shop      shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, module])
+  @@index([shopId])
+}
+
+model NotificationTemplate {
+  id           Int      @id @default(autoincrement())
+  shopId       Int      @unique
+  message      String   @db.Text
+  readyMessage String   @db.Text
+  deliveredMessage String @default("") @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  shop         shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+}
+
+model MarketingTemplate {
+  id        Int      @id @default(autoincrement())
+  shopId    Int
+  name      String
+  message   String   @db.Text
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  shop      shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, name])
+  @@index([shopId])
+}
+
+model LoyaltySetting {
+  id                       Int      @id @default(autoincrement())
+  shopId                   Int      @unique
+  enabled                  Boolean  @default(false)
+  spendPerPoint            Decimal  @default(1000.00) @db.Decimal(10, 2)
+  minimumEarnInvoice       Decimal  @default(1000.00) @db.Decimal(10, 2)
+  expiryEnabled            Boolean  @default(true)
+  expiryDays               Int      @default(90)
+  redemptionValuePerPoint  Decimal  @default(1.00) @db.Decimal(10, 2)
+  maximumRedemptionPercent Decimal  @default(20.00) @db.Decimal(5, 2)
+  minimumRedeemInvoice     Decimal  @default(1000.00) @db.Decimal(10, 2)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  shop                     shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+}
+
+model LoyaltyTransaction {
+  id              Int                           @id @default(autoincrement())
+  shopId          Int
+  customerId      Int
+  invoiceId       Int?
+  type            loyalty_transaction_type
+  points          Int
+  remainingPoints Int                           @default(0)
+  monetaryValue   Decimal                       @default(0.00) @db.Decimal(10, 2)
+  expiresAt       DateTime?
+  createdAt       DateTime                      @default(now())
+  shop            shop                          @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customer        customer                      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  invoice         invoice?                      @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  redemptionUses  LoyaltyRedemptionAllocation[] @relation("RedemptionTransaction")
+  earningUses     LoyaltyRedemptionAllocation[] @relation("EarningTransaction")
+
+  @@index([shopId, customerId, expiresAt])
+  @@index([invoiceId])
+}
+
+model LoyaltyRedemptionAllocation {
+  id           Int                @id @default(autoincrement())
+  redemptionId Int
+  earningId    Int
+  points       Int
+  redemption   LoyaltyTransaction @relation("RedemptionTransaction", fields: [redemptionId], references: [id], onDelete: Cascade)
+  earning      LoyaltyTransaction @relation("EarningTransaction", fields: [earningId], references: [id], onDelete: Cascade)
+
+  @@index([redemptionId])
+  @@index([earningId])
+}
+
+enum loyalty_transaction_type {
+  EARN
+  REDEEM
+  ADJUSTMENT
+}
+
+
+model Announcement {
+  id        Int               @id @default(autoincrement())
+  title     String            @db.VarChar(160)
+  message   String            @db.VarChar(1200)
+  tone      String            @default("INFO") @db.VarChar(20)
+  published Boolean           @default(false)
+  startsAt  DateTime          @default(now())
+  endsAt    DateTime?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  targets   AnnouncementShop[]
+
+  @@index([published, startsAt, endsAt])
+}
+
+model AnnouncementShop {
+  id             Int          @id @default(autoincrement())
+  announcementId Int
+  shopId         Int
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  shop           shop         @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, shopId])
+  @@index([shopId])
+}

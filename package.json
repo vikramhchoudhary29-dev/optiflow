@@ -1,0 +1,27 @@
+{
+  "name": "optiflow",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "postinstall": "prisma generate --schema server/prisma/schema.prisma",
+    "build": "npm --prefix client run build",
+    "vercel-build": "prisma migrate deploy --schema server/prisma/schema.prisma && prisma generate --schema server/prisma/schema.prisma && npm install --prefix client --include=optional && npm --prefix client run build",
+    "test": "npm --prefix server test",
+    "db:deploy": "prisma migrate deploy --schema server/prisma/schema.prisma",
+    "db:seed": "node server/prisma/seed.js"
+  },
+  "devDependencies": {
+    "dotenv-cli": "^11.0.0",
+    "prisma": "^6.19.3"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3"
+  }
+}

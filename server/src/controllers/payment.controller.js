@@ -1,0 +1,7 @@
+import asyncHandler from"../utils/asyncHandler.js";import{successResponse}from"../utils/response.js";import*as s from"../services/payment.service.js";
+import paymentReceipt from"../pdf/paymentReceipt.js";
+export const list=asyncHandler(async(req,res)=>successResponse(res,"Payments fetched successfully",await s.listPayments(req.user.shopId,req.query.invoiceId)));
+export const create=asyncHandler(async(req,res)=>successResponse(res,"Payment recorded successfully",await s.addPayment(req.user.shopId,req.user.userId,req.body),201));
+export const remove=asyncHandler(async(req,res)=>{await s.removePayment(req.user.shopId,req.params.id);successResponse(res,"Payment deleted successfully");});
+export const receipt=asyncHandler(async(req,res)=>paymentReceipt(res,await s.getPayment(req.user.shopId,req.params.id)));
+export const whatsapp=asyncHandler(async(req,res)=>{const payment=await s.getPayment(req.user.shopId,req.params.id);const message=`Hello ${payment.invoice.customer.name},\n\nWe have received ${Number(payment.amount).toFixed(2)} via ${payment.method} against Invoice ${payment.invoice.invoiceCode}.\n\nTotal received: ${Number(payment.invoice.received).toFixed(2)}\nBalance due: ${Number(payment.invoice.balance).toFixed(2)}\n\nThank you,\n${payment.shop.shopName}`;successResponse(res,"WhatsApp link generated",{url:`https://wa.me/91${payment.invoice.customer.mobile.replace(/\D/g,"").slice(-10)}?text=${encodeURIComponent(message)}`});});

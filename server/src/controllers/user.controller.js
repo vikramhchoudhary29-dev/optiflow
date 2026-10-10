@@ -1,0 +1,10 @@
+import asyncHandler from"../utils/asyncHandler.js";import{successResponse}from"../utils/response.js";import*as s from"../services/user.service.js";
+export const list=asyncHandler(async(req,res)=>successResponse(res,"Users fetched successfully",await s.listUsers(req.user.shopId)));
+export const get=asyncHandler(async(req,res)=>successResponse(res,"User fetched successfully",await s.getUser(req.user.shopId,req.params.id)));
+export const create=asyncHandler(async(req,res)=>successResponse(res,"Staff user created successfully",await s.addUser(req.user.shopId,req.body),201));
+export const update=asyncHandler(async(req,res)=>successResponse(res,"User updated successfully",await s.editUser(req.user.shopId,req.params.id,req.body)));
+export const status=asyncHandler(async(req,res)=>successResponse(res,"User status updated successfully",await s.setUserStatus(req.user.shopId,req.params.id,req.body.status)));
+export const password=asyncHandler(async(req,res)=>{await s.resetUserPassword(req.user.shopId,req.params.id,req.body.password);successResponse(res,"Password reset successfully");});
+export const permissions=asyncHandler(async(req,res)=>successResponse(res,"Permissions updated successfully",await s.setPermissions(req.user.shopId,req.params.id,req.body.permissions)));
+export const activity=asyncHandler(async(req,res)=>successResponse(res,"Staff activity fetched successfully",await s.getUserActivity(req.user.shopId,req.params.id)));
+export const remove=asyncHandler(async(req,res)=>{await s.removeUser(req.user.shopId,req.params.id);successResponse(res,"Staff user deleted successfully");});
